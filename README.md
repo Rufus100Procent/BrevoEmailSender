@@ -1,6 +1,6 @@
 # Send Email Using Brevo
 
-This project demonstrates the integration of Brevo (formerly Sendinblue) with a Java Spring Boot application. Brevo is a comprehensive email marketing and automation service that offers SMTP relay and transactional email services.
+Brevo (formerly Sendinblue) is a comprehensive email marketing and automation service that offers SMTP relay and transactional email services.
 
 ## Requirements
 
