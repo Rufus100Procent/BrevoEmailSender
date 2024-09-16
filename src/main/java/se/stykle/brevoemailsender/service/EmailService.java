@@ -1,9 +1,11 @@
-package se.stykle.brevoemailsender;
+package se.stykle.brevoemailsender.service;
 
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import se.stykle.brevoemailsender.EmailHistory;
+import se.stykle.brevoemailsender.EmailMessage;
 import software.xdev.brevo.api.TransactionalEmailsApi;
 import software.xdev.brevo.client.ApiClient;
 import software.xdev.brevo.client.ApiException;
@@ -24,7 +26,8 @@ public class EmailService {
     private static final Logger logger = LoggerFactory.getLogger(EmailService.class);
     private final List<EmailMessage> emails = new ArrayList<>();
     private final TransactionalEmailsApi apiInstance;
-
+    private static final String SENDER_EMAIL = "EMAILSENDER";
+    private static final String SENDER_NAME = "COMAPNYNAME.se";
     public EmailService() {
         ApiClient defaultClient = Configuration.getDefaultApiClient();
         ApiKeyAuth apiKey = (ApiKeyAuth) defaultClient.getAuthentication("api-key");
@@ -33,12 +36,17 @@ public class EmailService {
         this.apiInstance = new TransactionalEmailsApi(defaultClient);
     }
 
-    public void sendEmail(EmailMessage emailMessage) {
+    public void sendEmail(Long templateId, EmailMessage emailMessage) {
         emails.add(emailMessage);
 
         SendSmtpEmailSender sender = new SendSmtpEmailSender();
-        sender.setEmail("YOUR-@gmail.com");
-        sender.setName("DOMAIN.se"); // company name
+        sender.setEmail(SENDER_EMAIL);
+        sender.setName(SENDER_NAME);
+
+        if (emailMessage.getEmailTo() == null || emailMessage.getEmailTo().isEmpty()) {
+            logger.error("Recipient email is missing");
+            throw new IllegalArgumentException("Recipient email is missing");
+        }
 
         SendSmtpEmailToInner recipient = new SendSmtpEmailToInner();
         recipient.setEmail(emailMessage.getEmailTo());
@@ -49,9 +57,9 @@ public class EmailService {
         SendSmtpEmail email = new SendSmtpEmail();
         email.setSender(sender);
         email.setTo(recipients);
+        email.setTemplateId(templateId);
         email.setSubject(emailMessage.getSubject());
         email.setHtmlContent(emailMessage.getContent());
-
         email.setParams(emailMessage.getParams());
 
         Map<String, Object> headers = new HashMap<>();
