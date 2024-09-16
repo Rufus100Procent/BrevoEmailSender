@@ -1,10 +1,11 @@
-package se.stykle.brevoemailsender;
-
+package se.stykle.brevoemailsender.api;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import se.stykle.brevoemailsender.EmailMessage;
+import se.stykle.brevoemailsender.service.EmailService;
 
 import java.util.List;
 import java.util.Map;
@@ -16,16 +17,20 @@ public class EmailController {
 
     private final EmailService emailService;
 
+
     public EmailController(EmailService emailService) {
         this.emailService = emailService;
     }
 
     @PostMapping("/send-email")
-    public ResponseEntity<String> sendEmail(@RequestBody EmailMessage emailMessage) {
+    public ResponseEntity<String> sendEmail(
+            @RequestParam(required = false) Long templateId,
+            @RequestBody EmailMessage emailMessage) {
         HttpHeaders responseHeaders = new HttpHeaders();
-        responseHeaders.set("API-Version", "1.0.0");
+        responseHeaders.set("API-Version", "1.1.0");
+
         try {
-            emailService.sendEmail(emailMessage);
+            emailService.sendEmail(templateId, emailMessage);
             return ResponseEntity.ok()
                     .headers(responseHeaders)
                     .body("Email sent successfully!");
