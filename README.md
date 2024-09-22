@@ -24,7 +24,42 @@ Brevo (formerly Sendinblue) is a comprehensive email marketing and automation se
 # API Endpoints
 
 - POST `/api/v1/send-email `: Sends an email using Brevo's SMTP API.
-- POST `/api/v1/webhook/email-event`: Receives and processes Brevo webhooks.
+  
+  * Description: Sends an email using Brevo's SMTP API. You can optionally specify a template ID.
+  Request Parameters:
+
+  * templateId (optional, Long): The ID of the email template to use.
+
+  @RequestParam(required = false) Long templateId,@RequestBody:
+
+Notes:
+
+  If templateId is provided, the email will be sent using the specified template. the request body looks like this without param templateId
+  ```
+{
+  "emailTo": "recipient@example.com",
+  "subject": "Your Subject",
+  "params": {
+    "firstName": "John",
+    "lastName": "Doe"
+  }
+}
+```
+  If templateId is not specified, the email will be sent without using any template, if that is the case you will need to specify the content.
+  * it will look like this 
+
+```
+{
+  "emailTo": "recipient@example.com",
+  "subject": "Your Subject",
+  "content": "<h1>Hello, World!</h1>",
+  "params": {
+    "firstName": "John",
+    "lastName": "Doe"
+  }
+}
+```
+
 - GET `/api/v1/emails`: here you retrieve a formated data
 ```
 {
@@ -93,6 +128,122 @@ Brevo (formerly Sendinblue) is a comprehensive email marketing and automation se
   ]
 }
 ```
+
+# Manage Email Templates
+
+a. Create a New Email Template
+
+  Endpoint: POST /api/v1/create
+  Description: Creates a new email template.
+  Request Body:
+
+```
+ {
+  "templateName": "WelcomeTemplate",
+  "subject": "Welcome to Our Service",
+  "htmlContent": "<h1>Welcome, {{params.firstName}}!</h1>",
+  "replyTo": "support@example.com",
+  "isActive": true,
+  "attachmentUrl": "https://example.com/attachment.pdf", // optional to include
+  "toField": "{{params.email}}"
+}
+```
+Response:
+```
+{
+  "id": 123,
+  "message": "Template created successfully."
+}
+```
+b. Update an Existing Email Template
+
+  Endpoint: PUT `/api/v1/update`
+  
+  Description: Updates an existing email template.
+  Request Parameters:
+      templateId (required, Long): The ID of the template to update.
+  Request Body:
+
+```
+{
+  "templateName": "UpdatedTemplateName",
+  "subject": "Updated Subject",
+  "htmlContent": "<h1>Updated Content</h1>",
+  "replyTo": "support@example.com",
+  "isActive": false,
+  "attachmentUrl": "https://example.com/new-attachment.pdf", //optinal to include
+  "toField": "{{params.email}}"
+}
+```
+
+Response:
+
+```
+{
+  "message": "Template updated successfully."
+}
+
+```
+c. Fetch All Email Templates
+
+  Endpoint: GET `/api/v1/list`
+
+  Description: Retrieves all email templates with optional filtering.
+  Request Parameters:
+      isActive (optional, Boolean): Filter by active/inactive templates. Default is true.
+      limit (optional, Integer): Number of templates to return. Default is 50.
+      offset (optional, Integer): Index of the first template. Default is 0.
+
+d. Activate an Email Template
+
+  Endpoint: PUT `/api/v1/activate`
+
+  Description: Activates a deactivated email template.
+  Request Parameters:
+      templateId (required, Long): The ID of the template to activate.
+        
+Response:
+
+```
+{
+  "message": "Template activated successfully."
+}
+
+```
+
+e. Deactivate an Email Template
+
+  Endpoint: PUT `/api/v1/deactivate`
+
+  Description: Deactivates an active email template.
+  Request Parameters:
+      templateId (required, Long): The ID of the template to deactivate.
+        
+Response:
+
+```
+{
+  "message": "Template deactivated successfully."
+}
+
+```
+
+f. Delete an Email Template
+
+  Endpoint: DELETE `/api/v1/delete`
+
+  Description: Deletes an email template.
+  Request Parameters:
+      templateId (required, Long): The ID of the template to delete.
+  ```
+
+{
+  "message": "Template deleted successfully."
+}
+  ```
+
+    
+
 after an email was send there is a webhook configured in brevo, brevo will tracking the email and send a webhook on current status
 of the email, weather it was request, delivered or opened and send the data to `/api/v1/webhook/email-event`, and this program takes the data and maps it a coordenly to correct places
 
