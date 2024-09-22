@@ -11,6 +11,7 @@ import software.xdev.brevo.model.GetSmtpTemplates;
 
 @RequestMapping("/api/v1")
 @RestController
+@CrossOrigin("*")
 public class TemplateController {
     private final TemplateService templateService;
 
