@@ -19,7 +19,7 @@ public class EmailMessage {
     private Map<String, Object> params;
     private boolean opened;
     private final List<EmailHistory> history = new ArrayList<>();
-
+    private String batchId;
     public EmailMessage() {
         this.params = new HashMap<>();
     }
@@ -154,5 +154,12 @@ public class EmailMessage {
         this.mirrorLink = mirrorLink;
     }
 
+    public String getBatchId() {
+        return batchId;
+    }
+
+    public void setBatchId(String batchId) {
+        this.batchId = batchId;
+    }
 //</editor-fold>
 }

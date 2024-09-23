@@ -36,22 +36,14 @@ public class EmailService {
         this.apiInstance = new TransactionalEmailsApi(defaultClient);
     }
 
-    public void sendEmail(Long templateId, EmailMessage emailMessage) {
-        emails.add(emailMessage);
-
+    public void sendEmail(Long templateId, EmailMessage emailMessage, String scheduledAt, String batchId) {
+        List<SendSmtpEmailToInner> recipients = new ArrayList<>();
         SendSmtpEmailSender sender = new SendSmtpEmailSender();
         sender.setEmail(SENDER_EMAIL);
         sender.setName(SENDER_NAME);
 
-        if (emailMessage.getEmailTo() == null || emailMessage.getEmailTo().isEmpty()) {
-            logger.error("Recipient email is missing");
-            throw new IllegalArgumentException("Recipient email is missing");
-        }
-
         SendSmtpEmailToInner recipient = new SendSmtpEmailToInner();
         recipient.setEmail(emailMessage.getEmailTo());
-
-        List<SendSmtpEmailToInner> recipients = new ArrayList<>();
         recipients.add(recipient);
 
         SendSmtpEmail email = new SendSmtpEmail();
@@ -62,16 +54,55 @@ public class EmailService {
         email.setHtmlContent(emailMessage.getContent());
         email.setParams(emailMessage.getParams());
 
+        if (scheduledAt != null && !scheduledAt.isEmpty()) {
+            try {
+                OffsetDateTime scheduledDateTime = OffsetDateTime.parse(scheduledAt);
+                email.setScheduledAt(scheduledDateTime);
+            } catch (DateTimeParseException e) {
+                logger.error("Invalid date format for scheduledAt: {}", scheduledAt);
+                throw new IllegalArgumentException("Invalid date format for scheduledAt", e);
+            }
+        }
+
+        if (batchId == null || batchId.isEmpty()) {
+            batchId = UUID.randomUUID().toString();
+        }
+
+        if (isValidUUID(batchId)) {
+            email.setBatchId(batchId);
+        } else {
+            logger.error("Invalid batchId format: {}", batchId);
+            throw new IllegalArgumentException("Invalid batchId format. Please provide a valid UUID.");
+        }
+
         Map<String, Object> headers = new HashMap<>();
         headers.put("X-Mailin-Tag", emailMessage.getSubject());
         email.setHeaders(headers);
 
         try {
-            apiInstance.sendTransacEmail(email);
+            CreateSmtpEmail response = apiInstance.sendTransacEmail(email);
+            String messageId = response.getMessageId();
+
+            logger.info("Email sent successfully with messageId: {} and batchId: {}", messageId, batchId);
+
+            // Return the messageId and batchId to the calling endpoint
+            emailMessage.setMessageId(messageId);
+            emailMessage.setBatchId(batchId);
         } catch (ApiException e) {
             logger.error("Error when sending email: {}", e.getResponseBody(), e);
+            throw new RuntimeException("Failed to send email", e);
         }
     }
+
+    private boolean isValidUUID(String uuid) {
+        try {
+            UUID.fromString(uuid);
+            return true;
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
+    }
+
 
     public void handleWebhook(Map<String, Object> payload) {
         String emailTo = payload.get("email") != null ? payload.get("email").toString() : null;

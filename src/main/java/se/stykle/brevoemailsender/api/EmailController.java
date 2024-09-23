@@ -24,21 +24,29 @@ public class EmailController {
     }
 
     @PostMapping("/send-email")
-    public ResponseEntity<String> sendEmail(
+    public ResponseEntity<Map<String, String>> sendEmail(
             @RequestParam(required = false) Long templateId,
-            @RequestBody EmailMessage emailMessage) {
+            @RequestBody EmailMessage emailMessage,
+            @RequestParam(required = false) String scheduledAt,
+            @RequestParam(required = false) String batchId) {
+
         HttpHeaders responseHeaders = new HttpHeaders();
         responseHeaders.set("API-Version", "1.1.0");
 
         try {
-            emailService.sendEmail(templateId, emailMessage);
+            emailService.sendEmail(templateId, emailMessage, scheduledAt, batchId);
+            Map<String, String> responseBody = new HashMap<>();
+            responseBody.put("message", "Email sent successfully!");
+            responseBody.put("messageId", emailMessage.getMessageId());
+            responseBody.put("batchId", emailMessage.getBatchId());
+
             return ResponseEntity.ok()
                     .headers(responseHeaders)
-                    .body("Email sent successfully!");
+                    .body(responseBody);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .headers(responseHeaders)
-                    .body("Failed to send email: " + e.getMessage());
+                    .body(Map.of("error","Failed to send email: " + e.getMessage()));
         }
     }
 
