@@ -127,8 +127,9 @@ public class EmailService {
         try {
             apiInstance.deleteScheduledEmailById(messageId);
             return true;
-        } catch (IllegalArgumentException e) {
-            return false;
+        } catch (ApiException e) {
+            logger.error("Error canceling scheduled email: {}", e.getResponseBody(), e);
+            throw new RuntimeException("Failed to cancel scheduled email: " + e.getMessage());
         }
     }
 
