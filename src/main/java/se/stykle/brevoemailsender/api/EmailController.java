@@ -6,7 +6,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import se.stykle.brevoemailsender.EmailMessage;
 import se.stykle.brevoemailsender.service.EmailService;
+import software.xdev.brevo.model.GetScheduledEmailById200Response;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -18,7 +20,6 @@ public class EmailController {
 
     private final EmailService emailService;
 
-
     public EmailController(EmailService emailService) {
         this.emailService = emailService;
     }
@@ -27,29 +28,70 @@ public class EmailController {
     public ResponseEntity<Map<String, String>> sendEmail(
             @RequestParam(required = false) Long templateId,
             @RequestBody EmailMessage emailMessage,
-            @RequestParam(required = false) String scheduledAt,
-            @RequestParam(required = false) String batchId) {
+            @RequestParam(required = false) String scheduledAt) {
 
         HttpHeaders responseHeaders = new HttpHeaders();
-        responseHeaders.set("API-Version", "1.1.0");
+        responseHeaders.set("API-Version", "1.2.0");
 
         try {
-            emailService.sendEmail(templateId, emailMessage, scheduledAt, batchId);
+            emailService.sendEmail(templateId, emailMessage, scheduledAt);
+
             Map<String, String> responseBody = new HashMap<>();
             responseBody.put("message", "Email sent successfully!");
             responseBody.put("messageId", emailMessage.getMessageId());
-            responseBody.put("batchId", emailMessage.getBatchId());
 
             return ResponseEntity.ok()
                     .headers(responseHeaders)
                     .body(responseBody);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .headers(responseHeaders)
+                    .body(Map.of("error", e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .headers(responseHeaders)
-                    .body(Map.of("error","Failed to send email: " + e.getMessage()));
+                    .body(Map.of("error", "Failed to send email: " + e.getMessage()));
         }
     }
 
+
+    @DeleteMapping("/cancel-scheduled-email")
+    public ResponseEntity<String> cancelScheduledEmail(@RequestParam String messageId) {
+        HttpHeaders responseHeaders = new HttpHeaders();
+        responseHeaders.set("API-Version", "1.2.0");
+
+        try {
+            boolean success = emailService.cancelScheduledEmail(messageId);
+            return success ? ResponseEntity.ok("Scheduled email canceled successfully!") :
+                    ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                            .headers(responseHeaders)
+                            .body("Error canceling scheduled email");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .headers(responseHeaders)
+                    .body("Failed to cancel email: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/retrieve-scheduled-email")
+    public ResponseEntity<?> retrieveScheduledEmail(@RequestParam String messageId) {
+        HttpHeaders responseHeaders = new HttpHeaders();
+        responseHeaders.set("API-Version", "1.2.0");
+
+        try {
+            GetScheduledEmailById200Response response = emailService.retrieveScheduledEmail(messageId);
+            return ResponseEntity.ok()
+                    .headers(responseHeaders)
+                    .body(response);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .headers(responseHeaders)
+                    .body("Error retrieving scheduled email: " + e.getMessage());
+        }
+    }
+
+
+    // receives webhooks from brevo
     @PostMapping("/webhook/email-event")
     public ResponseEntity<String> handleWebhookEvent(@RequestBody Map<String, Object> payload) {
         HttpHeaders responseHeaders = new HttpHeaders();

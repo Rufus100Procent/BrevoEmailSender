@@ -11,14 +11,15 @@ import software.xdev.brevo.client.ApiClient;
 import software.xdev.brevo.client.ApiException;
 import software.xdev.brevo.client.Configuration;
 import software.xdev.brevo.client.auth.ApiKeyAuth;
-import software.xdev.brevo.model.SendSmtpEmail;
-import software.xdev.brevo.model.SendSmtpEmailSender;
-import software.xdev.brevo.model.SendSmtpEmailToInner;
+import software.xdev.brevo.model.*;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeParseException;
+import java.util.*;
 
 @Service
 public class EmailService {
@@ -36,22 +37,34 @@ public class EmailService {
         this.apiInstance = new TransactionalEmailsApi(defaultClient);
     }
 
-    public void sendEmail(Long templateId, EmailMessage emailMessage, String scheduledAt, String batchId) {
-        List<SendSmtpEmailToInner> recipients = new ArrayList<>();
+     //2024-09-26T10:56:00+02:00
+    public void sendEmail(Long templateId, EmailMessage emailMessage, String scheduledAt) {
+        validateParamAndEmailTo(emailMessage);
+
+        if (templateId == null) {
+            handleEmptyTemplate(emailMessage);
+        }
+
+        SendSmtpEmail email = new SendSmtpEmail();
         SendSmtpEmailSender sender = new SendSmtpEmailSender();
         sender.setEmail(SENDER_EMAIL);
         sender.setName(SENDER_NAME);
+        email.setSender(sender);
 
+        List<SendSmtpEmailToInner> recipients = new ArrayList<>();
         SendSmtpEmailToInner recipient = new SendSmtpEmailToInner();
         recipient.setEmail(emailMessage.getEmailTo());
         recipients.add(recipient);
-
-        SendSmtpEmail email = new SendSmtpEmail();
-        email.setSender(sender);
         email.setTo(recipients);
-        email.setTemplateId(templateId);
-        email.setSubject(emailMessage.getSubject());
-        email.setHtmlContent(emailMessage.getContent());
+
+        if (templateId != null) {
+            email.setTemplateId(templateId);
+            logger.info("Using template ID: {}", templateId);
+        } else {
+            email.setHtmlContent(emailMessage.getContent());
+            email.setSubject(emailMessage.getSubject());
+        }
+
         email.setParams(emailMessage.getParams());
 
         if (scheduledAt != null && !scheduledAt.isEmpty()) {
@@ -64,17 +77,6 @@ public class EmailService {
             }
         }
 
-        if (batchId == null || batchId.isEmpty()) {
-            batchId = UUID.randomUUID().toString();
-        }
-
-        if (isValidUUID(batchId)) {
-            email.setBatchId(batchId);
-        } else {
-            logger.error("Invalid batchId format: {}", batchId);
-            throw new IllegalArgumentException("Invalid batchId format. Please provide a valid UUID.");
-        }
-
         Map<String, Object> headers = new HashMap<>();
         headers.put("X-Mailin-Tag", emailMessage.getSubject());
         email.setHeaders(headers);
@@ -83,20 +85,47 @@ public class EmailService {
             CreateSmtpEmail response = apiInstance.sendTransacEmail(email);
             String messageId = response.getMessageId();
 
-            logger.info("Email sent successfully with messageId: {} and batchId: {}", messageId, batchId);
-
-            // Return the messageId and batchId to the calling endpoint
             emailMessage.setMessageId(messageId);
-            emailMessage.setBatchId(batchId);
+
+            logger.info("Email sent successfully with messageId: {}", messageId);
         } catch (ApiException e) {
             logger.error("Error when sending email: {}", e.getResponseBody(), e);
-            throw new RuntimeException("Failed to send email", e);
+            throw new RuntimeException("Failed to send email: " + e.getMessage());
         }
     }
 
-    private boolean isValidUUID(String uuid) {
+    private void handleEmptyTemplate(EmailMessage emailMessage) {
+
+        if (emailMessage.getContent() == null || emailMessage.getContent().isEmpty()) {
+            throw new IllegalArgumentException("Email Body cannot be empty when templateId is not specified");
+        }
+        if (emailMessage.getSubject() == null || emailMessage.getSubject().isEmpty()) {
+            throw new IllegalArgumentException("Subject cannot be empty when templateId is not specified");
+        }
+
+    }
+
+    private void validateParamAndEmailTo(EmailMessage emailMessage) {
+        if (emailMessage.getEmailTo() == null || emailMessage.getEmailTo().isEmpty()) {
+            throw new IllegalArgumentException("Recipient email cannot be empty");
+        }
+        if (emailMessage.getSubject() == null || emailMessage.getSubject().isEmpty()) {
+            throw new IllegalArgumentException("Subject cannot be empty");
+        }
+    }
+
+    public GetScheduledEmailById200Response retrieveScheduledEmail(String messageId) {
         try {
-            UUID.fromString(uuid);
+            return apiInstance.getScheduledEmailById(messageId, null, null, null, null, null, null);
+        } catch (ApiException e) {
+            logger.error("Error retrieving scheduled email: {}", e.getResponseBody(), e);
+            throw new RuntimeException("Failed to retrieve scheduled email: " + e.getMessage());
+        }
+    }
+
+    public boolean cancelScheduledEmail(String messageId) {
+        try {
+            apiInstance.deleteScheduledEmailById(messageId);
             return true;
         } catch (IllegalArgumentException e) {
             return false;
