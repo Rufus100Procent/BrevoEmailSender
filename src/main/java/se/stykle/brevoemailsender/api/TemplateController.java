@@ -19,7 +19,7 @@ public class TemplateController {
         this.templateService = templateService;
     }
 
-    @GetMapping("/list")
+    @GetMapping("/all-templates")
     public ResponseEntity<?> listTemplates(
             @RequestParam(defaultValue = "true") boolean isActive,
             @RequestParam(defaultValue = "50") int limit,
