@@ -3,6 +3,7 @@ package se.stykle.brevoemailsender.service;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import se.stykle.brevoemailsender.EmailHistory;
 import se.stykle.brevoemailsender.EmailMessage;
@@ -13,10 +14,6 @@ import software.xdev.brevo.client.Configuration;
 import software.xdev.brevo.client.auth.ApiKeyAuth;
 import software.xdev.brevo.model.*;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.HashMap;
-import java.util.Map;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.*;
@@ -27,8 +24,13 @@ public class EmailService {
     private static final Logger logger = LoggerFactory.getLogger(EmailService.class);
     private final List<EmailMessage> emails = new ArrayList<>();
     private final TransactionalEmailsApi apiInstance;
-    private static final String SENDER_EMAIL = "EMAILSENDER";
-    private static final String SENDER_NAME = "COMAPNYNAME.se";
+
+    @Value("${spring.sender.name}")
+    String senderName;
+
+    @Value("${spring.sender.email}")
+    String senderEmail;
+
     public EmailService() {
         ApiClient defaultClient = Configuration.getDefaultApiClient();
         ApiKeyAuth apiKey = (ApiKeyAuth) defaultClient.getAuthentication("api-key");
@@ -47,8 +49,8 @@ public class EmailService {
 
         SendSmtpEmail email = new SendSmtpEmail();
         SendSmtpEmailSender sender = new SendSmtpEmailSender();
-        sender.setEmail(SENDER_EMAIL);
-        sender.setName(SENDER_NAME);
+        sender.setEmail(senderEmail);
+        sender.setName(senderName);
         email.setSender(sender);
 
         List<SendSmtpEmailToInner> recipients = new ArrayList<>();

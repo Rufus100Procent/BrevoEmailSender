@@ -3,6 +3,7 @@ package se.stykle.brevoemailsender.service;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import se.stykle.brevoemailsender.BrevoTemplate;
 import software.xdev.brevo.api.TransactionalEmailsApi;
@@ -17,8 +18,13 @@ import software.xdev.brevo.model.CreateSmtpTemplate;
 public class TemplateService {
     private static final Logger logger = LoggerFactory.getLogger(TemplateService.class);
     private final TransactionalEmailsApi apiInstance;
-    private static final String SENDER_EMAIL = "EMAILERSENDER";
-    private static final String SENDER_NAME = "COMPANYNAME.se";
+
+    @Value("${spring.sender.name}")
+    String senderName;
+
+    @Value("${spring.sender.email}")
+    String senderEmail;
+
     public TemplateService() {
         ApiClient defaultClient = Configuration.getDefaultApiClient();
         ApiKeyAuth apiKey = (ApiKeyAuth) defaultClient.getAuthentication("api-key");
@@ -41,8 +47,8 @@ public class TemplateService {
         CreateSmtpTemplateSender sender = new CreateSmtpTemplateSender();
 
         // Using static sender email and name
-        sender.setEmail(SENDER_EMAIL);
-        sender.setName(SENDER_NAME);
+        sender.setEmail(senderEmail);
+        sender.setName(senderName);
 
         smtpTemplate.setSender(sender);
         smtpTemplate.setTemplateName(request.getTemplateName());
@@ -71,8 +77,8 @@ public class TemplateService {
         UpdateSmtpTemplate smtpTemplate = new UpdateSmtpTemplate();
         UpdateSmtpTemplateSender sender = new UpdateSmtpTemplateSender();
 
-        sender.setEmail(SENDER_EMAIL);
-        sender.setName(SENDER_NAME);
+        sender.setEmail(senderEmail);
+        sender.setName(senderName);
 
         smtpTemplate.setSender(sender);
         smtpTemplate.setTemplateName(request.getTemplateName());
