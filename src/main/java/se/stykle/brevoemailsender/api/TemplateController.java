@@ -9,7 +9,7 @@ import se.stykle.brevoemailsender.service.TemplateService;
 import software.xdev.brevo.model.CreateModel;
 import software.xdev.brevo.model.GetSmtpTemplates;
 
-@RequestMapping("/api/v1")
+@RequestMapping("/api/v1/template")
 @RestController
 @CrossOrigin("*")
 public class TemplateController {

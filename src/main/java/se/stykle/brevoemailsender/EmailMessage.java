@@ -8,21 +8,16 @@ public class EmailMessage {
     private String id;
     private String emailTo;
     private String messageId;
-    private String tag;
     private String date;
-    private String event;
+    private String emailStatus; // event
     private String subject;
-    private String sendingIp;
     private String senderEmail;
     private String mirrorLink;
     private String content;
     private Map<String, Object> params;
     private boolean opened;
+    private String scheduledDate;
     private final List<EmailHistory> history = new ArrayList<>();
-    private String batchId;
-    public EmailMessage() {
-        this.params = new HashMap<>();
-    }
 
     public EmailMessage(String recipient, String subject, String content) {
         this.emailTo = recipient;
@@ -38,6 +33,14 @@ public class EmailMessage {
         this.content = content;
         this.params = params != null ? params : new HashMap<>();
         this.opened = false;
+    }
+
+    public String isScheduledDate() {
+        return scheduledDate;
+    }
+
+    public void setScheduledDate(String scheduledDate) {
+        this.scheduledDate = scheduledDate;
     }
 
     // Add an entry to the history list
@@ -106,14 +109,6 @@ public class EmailMessage {
         this.messageId = messageId;
     }
 
-    public String getTag() {
-        return tag;
-    }
-
-    public void setTag(String tag) {
-        this.tag = tag;
-    }
-
     public String getDate() {
         return date;
     }
@@ -122,21 +117,14 @@ public class EmailMessage {
         this.date = date;
     }
 
-    public String getEvent() {
-        return event;
+    public String getEmailStatus() {
+        return emailStatus;
     }
 
-    public void setEvent(String event) {
-        this.event = event;
+    public void setEmailStatus(String emailStatus) {
+        this.emailStatus = emailStatus;
     }
 
-    public String getSendingIp() {
-        return sendingIp;
-    }
-
-    public void setSendingIp(String sendingIp) {
-        this.sendingIp = sendingIp;
-    }
 
     public String getSenderEmail() {
         return senderEmail;
@@ -153,13 +141,12 @@ public class EmailMessage {
     public void setMirrorLink(String mirrorLink) {
         this.mirrorLink = mirrorLink;
     }
-
-    public String getBatchId() {
-        return batchId;
+    public EmailMessage() {
+        this.params = new HashMap<>();
     }
 
-    public void setBatchId(String batchId) {
-        this.batchId = batchId;
+    public String getScheduledDate() {
+        return scheduledDate;
     }
 //</editor-fold>
 }

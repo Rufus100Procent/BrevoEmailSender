@@ -42,59 +42,78 @@ public class EmailService {
      //2024-09-26T10:56:00+02:00
     public void sendEmail(Long templateId, EmailMessage emailMessage, String scheduledAt) {
         validateParamAndEmailTo(emailMessage);
+     public void sendEmail(Long templateId, EmailMessage emailMessage, String scheduledAt) {
+         validateParamAndEmailTo(emailMessage);
 
-        if (templateId == null) {
-            handleEmptyTemplate(emailMessage);
-        }
+         if (templateId == null) {
+             handleEmptyTemplate(emailMessage);
+         }
 
-        SendSmtpEmail email = new SendSmtpEmail();
-        SendSmtpEmailSender sender = new SendSmtpEmailSender();
-        sender.setEmail(senderEmail);
-        sender.setName(senderName);
-        email.setSender(sender);
+         SendSmtpEmail email = new SendSmtpEmail();
+         SendSmtpEmailSender sender = new SendSmtpEmailSender();
+         sender.setEmail(senderEmail);
+         sender.setName(senderName);
+         email.setSender(sender);
 
-        List<SendSmtpEmailToInner> recipients = new ArrayList<>();
-        SendSmtpEmailToInner recipient = new SendSmtpEmailToInner();
-        recipient.setEmail(emailMessage.getEmailTo());
-        recipients.add(recipient);
-        email.setTo(recipients);
+         List<SendSmtpEmailToInner> recipients = new ArrayList<>();
+         SendSmtpEmailToInner recipient = new SendSmtpEmailToInner();
+         recipient.setEmail(emailMessage.getEmailTo());
+         recipients.add(recipient);
+         email.setTo(recipients);
 
-        if (templateId != null) {
-            email.setTemplateId(templateId);
-            logger.info("Using template ID: {}", templateId);
-        } else {
-            email.setHtmlContent(emailMessage.getContent());
-            email.setSubject(emailMessage.getSubject());
-        }
+         if (templateId != null) {
+             email.setTemplateId(templateId);
+             logger.info("Using template ID: {}", templateId);
+         } else {
+             email.setHtmlContent(emailMessage.getContent());
+             email.setSubject(emailMessage.getSubject());
+         }
 
-        email.setParams(emailMessage.getParams());
+         email.setParams(emailMessage.getParams());
 
-        if (scheduledAt != null && !scheduledAt.isEmpty()) {
-            try {
-                OffsetDateTime scheduledDateTime = OffsetDateTime.parse(scheduledAt);
-                email.setScheduledAt(scheduledDateTime);
-            } catch (DateTimeParseException e) {
-                logger.error("Invalid date format for scheduledAt: {}", scheduledAt);
-                throw new IllegalArgumentException("Invalid date format for scheduledAt", e);
-            }
-        }
+         if (scheduledAt != null && !scheduledAt.isEmpty()) {
+             try {
+                 OffsetDateTime scheduledDateTime = OffsetDateTime.parse(scheduledAt);
+                 email.setScheduledAt(scheduledDateTime);
+                 emailMessage.setScheduledDate(scheduledAt); // Store the scheduled date
+             } catch (DateTimeParseException e) {
+                 logger.error("Invalid date format for scheduledAt: {}", scheduledAt);
+                 throw new IllegalArgumentException("Invalid date format for scheduledAt", e);
+             }
+         } else {
+             emailMessage.setScheduledDate("No scheduled date"); // Default if no scheduledAt is provided
+         }
 
-        Map<String, Object> headers = new HashMap<>();
-        headers.put("X-Mailin-Tag", emailMessage.getSubject());
-        email.setHeaders(headers);
+         Map<String, Object> headers = new HashMap<>();
+         headers.put("X-Mailin-Tag", emailMessage.getSubject());
+         email.setHeaders(headers);
 
-        try {
-            CreateSmtpEmail response = apiInstance.sendTransacEmail(email);
-            String messageId = response.getMessageId();
+         try {
+             CreateSmtpEmail response = apiInstance.sendTransacEmail(email);
+             String messageId = response.getMessageId();
+             emailMessage.setMessageId(messageId);
+             emailMessage.setSenderEmail(senderEmail);
+             emailMessage.setEmailStatus("requested");
 
-            emailMessage.setMessageId(messageId);
+             // Save to history
+             EmailHistory historyEntry = new EmailHistory(
+                     messageId,
+                     emailMessage.getEmailTo(),
+                     emailMessage.getDate(),
+                     emailMessage.getEmailStatus(),
+                     null // Mirror link will be added later from the webhook
+             );
+             emailMessage.addHistory(historyEntry);
 
-            logger.info("Email sent successfully with messageId: {}", messageId);
-        } catch (ApiException e) {
-            logger.error("Error when sending email: {}", e.getResponseBody(), e);
-            throw new RuntimeException("Failed to send email: " + e.getMessage());
-        }
-    }
+             // Add email message to the list (or other storage mechanism)
+             emails.add(emailMessage);
+
+             logger.info("Email sent successfully with messageId: {}", messageId);
+         } catch (ApiException e) {
+             logger.error("Error when sending email: {}", e.getResponseBody(), e);
+             throw new RuntimeException("Failed to send email: " + e.getMessage());
+         }
+     }
 
     private void handleEmptyTemplate(EmailMessage emailMessage) {
 
@@ -138,67 +157,50 @@ public class EmailService {
 
     public void handleWebhook(Map<String, Object> payload) {
         String emailTo = payload.get("email") != null ? payload.get("email").toString() : null;
-        String subject = payload.get("subject") != null ? payload.get("subject").toString() : null;
-        String id = payload.get("id") != null ? payload.get("id").toString() : null;
+        String messageId = payload.get("message-id") != null ? payload.get("message-id").toString() : null;
 
-        if ((emailTo == null || emailTo.isEmpty() || subject == null || subject.isEmpty()) && (id == null || id.isEmpty())) {
-            logger.warn("Webhook data is missing both email and id: {}", payload);
+        if (emailTo == null || messageId == null) {
+            logger.warn("Webhook data is missing email or message-id: {}", payload);
             throw new RuntimeException("Webhook data is not recognized: " + payload);
         }
 
-        EmailMessage matchingEmail = null;
-        if (emailTo != null && !emailTo.isEmpty() && subject != null && !subject.isEmpty()) {
-            matchingEmail = emails.stream()
-                    .filter(email -> email.getEmailTo().equalsIgnoreCase(emailTo) && email.getSubject().equalsIgnoreCase(subject))
-                    .findFirst()
-                    .orElse(null);
-        }
-
-        if (matchingEmail == null && id != null && !id.isEmpty()) {
-            matchingEmail = emails.stream()
-                    .filter(email -> id.equals(email.getId()))
-                    .findFirst()
-                    .orElse(null);
-        }
+        EmailMessage matchingEmail = emails.stream()
+                .filter(email -> email.getEmailTo().equalsIgnoreCase(emailTo) && email.getMessageId().equals(messageId))
+                .findFirst()
+                .orElse(null);
 
         if (matchingEmail != null) {
+            String id = payload.get("id") != null ? payload.get("id").toString() : null;
+            String event = payload.get("event") != null ? payload.get("event").toString() : null;
+            String date = payload.get("date") != null ? payload.get("date").toString() : null;
             String mirrorLink = payload.get("mirror_link") != null ? payload.get("mirror_link").toString() : null;
-            String event = payload.get("event").toString();
-            String date = payload.get("date").toString();
-            String sendingIp = payload.get("sending_ip") != null ? payload.get("sending_ip").toString() : null;
-
-            // Create a new history entry
-            EmailHistory historyEntry = new EmailHistory(id, emailTo, date, event, sendingIp, mirrorLink);
-            matchingEmail.addHistory(historyEntry);
 
             // Update the current email message fields
             matchingEmail.setId(id != null ? id : matchingEmail.getId());
-            matchingEmail.setMessageId(payload.get("message-id").toString());
-            matchingEmail.setTag(payload.get("tag").toString());
             matchingEmail.setDate(date);
-            matchingEmail.setEvent(event);
-            matchingEmail.setSendingIp(sendingIp);
-            matchingEmail.setSenderEmail(payload.get("sender_email").toString());
+            matchingEmail.setEmailStatus(event);
             matchingEmail.setMirrorLink(mirrorLink);
 
-            if (List.of("open", "unique_opened", "known_open", "first_opening", "loaded_by_proxy").contains(event)) {
-                matchingEmail.setOpened(true);
-            }
+            // Create a new history entry
+            EmailHistory historyEntry = new EmailHistory(
+                    id, emailTo, date, event, mirrorLink
+            );
+            matchingEmail.addHistory(historyEntry);
 
+            logger.info("Email updated successfully for messageId: {}", messageId);
         } else {
-            logger.error("Webhook data is not recognized: {}", payload);
-            throw new RuntimeException("Webhook data is not recognized: " + payload);
+            logger.error("No matching email found for messageId: {}", messageId);
+            throw new RuntimeException("No matching email found for messageId: " + messageId);
         }
     }
-
-
     public List<Map<String, String>> getFormattedEmails() {
         List<Map<String, String>> formattedEmails = new ArrayList<>();
 
         for (EmailMessage email : emails) {
             Map<String, String> emailData = new HashMap<>();
-            emailData.put("Status", email.getEvent());
+            emailData.put("Status", email.getEmailStatus());
             emailData.put("Date", email.getDate());
+            emailData.put("Scheduled Date", email.getScheduledDate());
             emailData.put("Subject", email.getSubject());
             emailData.put("From", email.getSenderEmail());
             emailData.put("To", email.getEmailTo());
@@ -212,5 +214,6 @@ public class EmailService {
     public List<EmailMessage> getAllEmails() {
         return emails;
     }
+
 }
 

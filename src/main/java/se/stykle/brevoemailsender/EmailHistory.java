@@ -5,16 +5,14 @@ public class EmailHistory {
     private String id;
     private String email;
     private String date;
-    private String event;
-    private String sendingIp;
+    private String emailStatus;
     private String mirrorLink;
 
-    public EmailHistory(String id, String email, String date, String event, String sendingIp, String mirrorLink) {
+    public EmailHistory(String id, String email, String date, String event, String mirrorLink) {
         this.id = id;
         this.email = email;
         this.date = date;
-        this.event = event;
-        this.sendingIp = sendingIp;
+        this.emailStatus = event;
         this.mirrorLink = mirrorLink;
     }
 
@@ -43,20 +41,12 @@ public class EmailHistory {
         this.date = date;
     }
 
-    public String getEvent() {
-        return event;
+    public String getEmailStatus() {
+        return emailStatus;
     }
 
-    public void setEvent(String event) {
-        this.event = event;
-    }
-
-    public String getSendingIp() {
-        return sendingIp;
-    }
-
-    public void setSendingIp(String sendingIp) {
-        this.sendingIp = sendingIp;
+    public void setEmailStatus(String emailStatus) {
+        this.emailStatus = emailStatus;
     }
 
     public String getMirrorLink() {
