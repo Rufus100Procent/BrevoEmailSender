@@ -15,10 +15,10 @@ on:
     branches: ['master']
 
 permissions:
-  contents: write  # Grant write permissions to GITHUB_TOKEN
+  contents: write
 
 env:
-  START_VERSION: "1.3.9"  # Define your starting version here
+  START_VERSION: "1.3.9"
 
 jobs:
   build-and-push:
