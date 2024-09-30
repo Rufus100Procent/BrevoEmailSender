@@ -60,7 +60,7 @@ jobs:
           # Build Docker image with the new version tag
           docker build \
             -t stykle/brevo:${{ steps.set-version.outputs.jar_version }} \
-            -f ./src/Dockerfile .
+            -f ./Dockerfile .
 
           # Push the Docker image to Docker Hub
           docker push stykle/brevo:${{ steps.set-version.outputs.jar_version }}
