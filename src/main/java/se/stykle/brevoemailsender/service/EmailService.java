@@ -40,8 +40,6 @@ public class EmailService {
     }
 
      //2024-09-26T10:56:00+02:00
-    public void sendEmail(Long templateId, EmailMessage emailMessage, String scheduledAt) {
-        validateParamAndEmailTo(emailMessage);
      public void sendEmail(Long templateId, EmailMessage emailMessage, String scheduledAt) {
          validateParamAndEmailTo(emailMessage);
 
