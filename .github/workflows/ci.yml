@@ -30,23 +30,18 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      # Step 3: Bump JAR version
-      - name: Bump JAR version
-        id: bump-version
+      # Step 3: Bump version using GitHub run number
+      - name: Set version
+        id: set-version
         run: |
-          # Get the current version from pom.xml
-          OLD_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
-          echo "Current version: $OLD_VERSION"
-
-          # Bump the patch version (e.g., 1.0.0 -> 1.0.1)
-          NEW_VERSION=$(echo $OLD_VERSION | awk -F. -v OFS=. '{$NF = $NF + 1 ; print}')
+          NEW_VERSION="1.3.${GITHUB_RUN_NUMBER}"
           echo "New version: $NEW_VERSION"
 
           # Update the version in pom.xml
           mvn versions:set -DnewVersion=$NEW_VERSION
 
           # Output the new version for later steps
-          echo "::set-output name=jar_version::$NEW_VERSION"
+          echo "jar_version=$NEW_VERSION" >> $GITHUB_OUTPUT
 
       # Step 4: Build and test with Maven
       - name: Build and test with Maven
@@ -64,15 +59,16 @@ jobs:
         run: |
           # Build Docker image with the new version tag
           docker build \
-            -t ${{ secrets.DOCKERHUB_USERNAME }}/your-image-name:${{ steps.bump-version.outputs.jar_version }} \
+            -t stykle/brevo:${{ steps.set-version.outputs.jar_version }} \
             -f ./src/Dockerfile .
 
           # Push the Docker image to Docker Hub
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/your-image-name:${{ steps.bump-version.outputs.jar_version }}
+          docker push stykle/brevo:${{ steps.set-version.outputs.jar_version }}
 
           # Optionally tag the image as 'latest' and push
           docker tag \
-            ${{ secrets.DOCKERHUB_USERNAME }}/your-image-name:${{ steps.bump-version.outputs.jar_version }} \
-            ${{ secrets.DOCKERHUB_USERNAME }}/your-image-name:latest
+            stykle/brevo:${{ steps.set-version.outputs.jar_version }} \
+            stykle/brevo:latest
 
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/your-image-name:latest
+          docker push stykle/brevo:latest
+
