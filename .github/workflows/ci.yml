@@ -6,49 +6,73 @@
 # separate terms of service, privacy policy, and support
 # documentation.
 # This workflow builds a Java project with Maven, runs tests, builds a Docker image, and pushes it to Docker Hub.
-
 name: Java CI with Maven and Docker
 
 on:
   push:
-    branches: [ "master" ]
+    branches: ['master']
   pull_request:
-    branches: [ "master" ]
+    branches: ['master']
 
 jobs:
-  build:
+  build-and-push:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      # Step 1: Checkout the code
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
+      # Step 2: Set up JDK 17
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
-          cache: maven
 
-      - name: Build and Test with Maven
-        run: mvn clean package
+      # Step 3: Bump JAR version
+      - name: Bump JAR version
+        id: bump-version
+        run: |
+          # Get the current version from pom.xml
+          OLD_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+          echo "Current version: $OLD_VERSION"
 
+          # Bump the patch version (e.g., 1.0.0 -> 1.0.1)
+          NEW_VERSION=$(echo $OLD_VERSION | awk -F. -v OFS=. '{$NF = $NF + 1 ; print}')
+          echo "New version: $NEW_VERSION"
+
+          # Update the version in pom.xml
+          mvn versions:set -DnewVersion=$NEW_VERSION
+
+          # Output the new version for later steps
+          echo "::set-output name=jar_version::$NEW_VERSION"
+
+      # Step 4: Build and test with Maven
+      - name: Build and test with Maven
+        run: mvn clean test
+
+      # Step 5: Log in to Docker Hub
       - name: Log in to Docker Hub
-        uses: docker/login-action@c64cbb64f34f7ab4d0b0cd23ef8e3c1681f617e8
+        uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
-        uses: docker/metadata-action@0f467d89be62494a2bba8472c821f8ca6b10605d
-        with:
-          images: ${{ secrets.DOCKERHUB_USERNAME }}/your-image-name
-
+      # Step 6: Build and push Docker image
       - name: Build and push Docker image
-        uses: docker/build-push-action@dc4d1b40a25899bdbfcde0ed86a3d44aebc3f40b
-        with:
-          context: .
-          file: ./Dockerfile
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+        run: |
+          # Build Docker image with the new version tag
+          docker build \
+            -t ${{ secrets.DOCKERHUB_USERNAME }}/your-image-name:${{ steps.bump-version.outputs.jar_version }} \
+            -f ./src/Dockerfile .
+
+          # Push the Docker image to Docker Hub
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/your-image-name:${{ steps.bump-version.outputs.jar_version }}
+
+          # Optionally tag the image as 'latest' and push
+          docker tag \
+            ${{ secrets.DOCKERHUB_USERNAME }}/your-image-name:${{ steps.bump-version.outputs.jar_version }} \
+            ${{ secrets.DOCKERHUB_USERNAME }}/your-image-name:latest
+
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/your-image-name:latest
