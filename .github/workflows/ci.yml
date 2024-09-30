@@ -5,6 +5,8 @@
 # They are provided by a third-party and are governed by
 # separate terms of service, privacy policy, and support
 # documentation.
+# This workflow builds a Java project with Maven, runs tests, builds a Docker image, and pushes it to Docker Hub.
+
 name: Java CI with Maven and Docker
 
 on:
@@ -31,19 +33,19 @@ jobs:
         run: mvn clean package
 
       - name: Log in to Docker Hub
-        uses: docker/login-action@v2
+        uses: docker/login-action@c64cbb64f34f7ab4d0b0cd23ef8e3c1681f617e8
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
       - name: Extract metadata (tags, labels) for Docker
         id: meta
-        uses: docker/metadata-action@v6
+        uses: docker/metadata-action@0f467d89be62494a2bba8472c821f8ca6b10605d
         with:
           images: ${{ secrets.DOCKERHUB_USERNAME }}/your-image-name
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@dc4d1b40a25899bdbfcde0ed86a3d44aebc3f40b
         with:
           context: .
           file: ./Dockerfile
