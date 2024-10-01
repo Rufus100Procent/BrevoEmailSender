@@ -133,7 +133,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1  # Replace with your AWS region if different
+          aws-region: eu-north-1  # Replace with your AWS region if different
 
       # Step 9: Create CodeDeploy Deployment
       - name: Create CodeDeploy deployment
@@ -143,5 +143,5 @@ jobs:
             --deployment-group-name BrevoEmailSenderDeploymentGroup \
             --deployment-config-name CodeDeployDefault.AllAtOnce \
             --github-location repository=${{ github.repository }},commitId=${{ github.sha }} \
-            --region us-east-1  # Replace with your AWS region if different
+            --region eu-north-1  # Replace with your AWS region if different
 
