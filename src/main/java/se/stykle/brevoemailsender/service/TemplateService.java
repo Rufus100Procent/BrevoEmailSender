@@ -25,10 +25,13 @@ public class TemplateService {
     @Value("${spring.sender.email}")
     String senderEmail;
 
+    @Value("${brevo.api.key}")
+    private String brevoApiKey;
+
     public TemplateService() {
         ApiClient defaultClient = Configuration.getDefaultApiClient();
         ApiKeyAuth apiKey = (ApiKeyAuth) defaultClient.getAuthentication("api-key");
-        apiKey.setApiKey("GENERATE-API-KEYS 'https://app.brevo.com/settings/keys/api'");
+        apiKey.setApiKey(brevoApiKey);
 
         this.apiInstance = new TransactionalEmailsApi(defaultClient);
     }
@@ -40,6 +43,10 @@ public class TemplateService {
             logger.error("Error fetching templates: {}", e.getResponseBody(), e);
             return null;
         }
+    }
+
+    public GetSmtpTemplates fetchTemplateNames(boolean isActive, int limit, int offset, String templateName) {
+        return apiInstance.getSmtpTemplates(isActive, (long) limit, (long) offset, templateName);
     }
 
     public CreateModel createCustomTemplate(BrevoTemplate request) {

@@ -31,10 +31,13 @@ public class EmailService {
     @Value("${spring.sender.email}")
     String senderEmail;
 
+    @Value("${brevo.api.key}")
+    private String brevoApiKey;
+
     public EmailService() {
         ApiClient defaultClient = Configuration.getDefaultApiClient();
         ApiKeyAuth apiKey = (ApiKeyAuth) defaultClient.getAuthentication("api-key");
-        apiKey.setApiKey("GENERATE-API-KEYS 'https://app.brevo.com/settings/keys/api'");
+        apiKey.setApiKey(brevoApiKey);
 
         this.apiInstance = new TransactionalEmailsApi(defaultClient);
     }

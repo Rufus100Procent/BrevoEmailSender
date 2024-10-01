@@ -36,6 +36,23 @@ public class TemplateController {
                         .body("Error fetching templates");
     }
 
+    @GetMapping("/template-names")
+    public ResponseEntity<?> listTemplateNames(
+            @RequestParam(defaultValue = "true") boolean isActive,
+            @RequestParam(defaultValue = "50") int limit,
+            @RequestParam(defaultValue = "0") int offset,
+            @RequestParam String templateNames){
+
+        HttpHeaders responseHeaders = new HttpHeaders();
+        responseHeaders.set("API-Version", "1.0.0");
+
+        GetSmtpTemplates templates = templateService.fetchTemplateNames(isActive, limit, offset, templateNames);
+        return templates != null ? ResponseEntity.ok(templates) :
+                ResponseEntity
+                        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .headers(responseHeaders)
+                        .body("Error fetching templates");
+    }
     @PostMapping("/create")
     public ResponseEntity<?> createTemplate(@RequestBody BrevoTemplate request) {
 
