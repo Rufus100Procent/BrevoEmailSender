@@ -1,0 +1,24 @@
+version: 0.0
+os: linux
+files:
+  - source: /src
+    destination: /tmp/codedeploy-deployment-staging-area/src
+  - source: /pom.xml
+    destination: /tmp/codedeploy-deployment-staging-area/
+  - source: /Dockerfile
+    destination: /tmp/codedeploy-deployment-staging-area/
+  - source: /scripts
+    destination: /tmp/codedeploy-deployment-staging-area/scripts
+hooks:
+  BeforeInstall:
+    - location: scripts/before_install.sh
+      runas: ec2-user
+  ApplicationStart:
+    - location: scripts/application_start.sh
+      runas: ec2-user
+  AfterInstall:
+    - location: scripts/after_install.sh
+      runas: ec2-user
+  HealthCheck:
+    - location: scripts/health_check.sh
+      runas: ec2-user
