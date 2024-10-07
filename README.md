@@ -2,6 +2,7 @@
 
 Brevo (formerly Sendinblue) is a comprehensive email marketing and automation service that offers SMTP relay and transactional email services.
 
+
 ## Requirements
 
 - **Java:** JDK 11 or higher
