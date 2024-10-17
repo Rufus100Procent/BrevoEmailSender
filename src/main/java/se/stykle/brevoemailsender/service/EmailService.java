@@ -227,6 +227,7 @@ public class EmailService {
      */
     @Transactional
     public void handleWebhook(Map<String, Object> payload) {
+        log.info("Webhook data: {}", payload);
         // Extract and validate essential fields
         final String emailTo = payload.get("email") != null ? payload.get("email").toString() : null;
         final String messageId = payload.get("message-id") != null ? payload.get("message-id").toString() : null;
