@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
 import se.stykle.brevoemailsender.entity.EmailData;
 import se.stykle.brevoemailsender.entity.EmailHistory;
 import se.stykle.brevoemailsender.entity.Sequence;
-import se.stykle.brevoemailsender.entity.Status;
+import se.stykle.brevoemailsender.Status;
 import se.stykle.brevoemailsender.entity.dto.EmailSummaryDTO;
 import se.stykle.brevoemailsender.repository.EmailDataRepository;
 import se.stykle.brevoemailsender.repository.EmailHistoryRepository;
@@ -21,7 +21,10 @@ import software.xdev.brevo.client.Configuration;
 import software.xdev.brevo.client.auth.ApiKeyAuth;
 import software.xdev.brevo.model.*;
 
+import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.*;
 
@@ -225,15 +228,20 @@ public class EmailService {
      *
      * @param payload The webhook payload as a Map.
      */
+
     @Transactional
     public void handleWebhook(Map<String, Object> payload) {
         log.info("Webhook data: {}", payload);
-        // Extract and validate essential fields
+
+        // Extract essential fields
         final String emailTo = payload.get("email") != null ? payload.get("email").toString() : null;
         final String messageId = payload.get("message-id") != null ? payload.get("message-id").toString() : null;
+        final String eventStr = payload.get("event") != null ? payload.get("event").toString().toUpperCase() : null;
+        final String dateStr = payload.get("date") != null ? payload.get("date").toString() : null;
+        final String mirrorLink = payload.get("mirror_link") != null ? payload.get("mirror_link").toString() : null;
 
-        if (emailTo == null || messageId == null) {
-            log.warn("Webhook data is missing email or message-id: {}", payload);
+        if (emailTo == null || messageId == null || eventStr == null) {
+            log.warn("Webhook data is missing essential fields: {}", payload);
             throw new RuntimeException("Webhook data is not recognized: " + payload);
         }
 
@@ -245,17 +253,18 @@ public class EmailService {
                     return new RuntimeException("No matching email found for messageId: " + messageId);
                 });
 
-        // Extract event details
-        final String eventStr = payload.get("event") != null ? payload.get("event").toString().toUpperCase() : null;
-        final String dateStr = payload.get("date") != null ? payload.get("date").toString() : null;
-        final String mirrorLink = payload.get("mirror_link") != null ? payload.get("mirror_link").toString() : null;
-
-        if (eventStr == null) {
-            log.warn("Webhook event is missing: {}", payload);
-            throw new RuntimeException("Webhook event is missing: " + payload);
+        // Parse the date from Brevo's date format (yyyy-MM-dd HH:mm:ss)
+        LocalDateTime eventDateTime;
+        try {
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+            eventDateTime = LocalDateTime.parse(dateStr, formatter);
+        } catch (Exception e) {
+            log.warn("Invalid date format in webhook: {}", dateStr);
+            eventDateTime = LocalDateTime.now(); // Fallback to current date
         }
 
-        // Parse event status
+        OffsetDateTime eventDate = eventDateTime.atOffset(ZoneOffset.UTC);
+
         final Status eventStatus;
         try {
             eventStatus = Status.valueOf(eventStr);
@@ -264,19 +273,9 @@ public class EmailService {
             throw new RuntimeException("Unknown event status: " + eventStr);
         }
 
-        // Parse event date
-        final OffsetDateTime eventDate;
-        try {
-            eventDate = dateStr != null ? OffsetDateTime.parse(dateStr) : OffsetDateTime.now();
-        } catch (DateTimeParseException e) {
-            log.warn("Invalid date format in webhook: {}", dateStr);
-            throw new RuntimeException("Invalid date format in webhook: " + dateStr);
-        }
-
         emailData.setDate(eventDate);
         emailData.setEmailStatus(eventStatus);
         emailData.setMirrorLink(mirrorLink);
-
         emailDataRepository.save(emailData);
 
         EmailHistory historyEntry = new EmailHistory();
@@ -288,34 +287,32 @@ public class EmailService {
         historyEntry.setEmailData(emailData);
         emailHistoryRepository.save(historyEntry);
 
-        // Adjust Sequence counts based on event
         Sequence sequence = emailData.getSequence();
         switch (eventStatus) {
             case DELIVERED:
+                sequence.setRequestedCount(Math.max(sequence.getRequestedCount() - 1, 0));
+                sequence.setDeliveredCount(sequence.getDeliveredCount() + 1);
+                break;
             case OPENED:
+                sequence.setDeliveredCount(Math.max(sequence.getDeliveredCount() - 1, 0));
+                sequence.setOpenedCount(sequence.getOpenedCount() + 1);
+                break;
+            case CLICKED:
+                break;
             case BOUNCED:
             case SOFT_BOUNCED:
             case HARD_BOUNCED:
-            case CLICKED:
             case MARKED_AS_SPAM:
             case UNSUBSCRIBED:
-            case CANCELLED:
-                // For these events, decrement requestedCount
-                sequence.setRequestedCount(Math.max(sequence.getRequestedCount() - 1, 0));
                 break;
-            case SENT:
-                // If event is SENT, decrement scheduledCount
-                sequence.setScheduledCount(Math.max(sequence.getScheduledCount() - 1, 0));
-                break;
-            // Add other cases as necessary
             default:
                 log.warn("Unhandled event status: {}", eventStatus);
                 break;
         }
 
+        // Save the updated sequence
         sequenceRepository.save(sequence);
     }
-
     public EmailSummaryDTO getEmailSummary(String messageId) {
         return emailDataRepository.findEmailSummaryByMessageId(messageId)
                 .orElseThrow(() -> new RuntimeException("Email not found with messageId: " + messageId));

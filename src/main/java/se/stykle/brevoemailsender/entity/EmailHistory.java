@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import se.stykle.brevoemailsender.Status;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;

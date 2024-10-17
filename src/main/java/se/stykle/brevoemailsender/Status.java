@@ -1,4 +1,4 @@
-package se.stykle.brevoemailsender.entity;
+package se.stykle.brevoemailsender;
 
 public enum Status {
     SCHEDULED,
@@ -12,5 +12,6 @@ public enum Status {
     CANCELLED,
     SENT,
     UNSUBSCRIBED,
-    REQUESTED
+    REQUESTED,
+
 }
