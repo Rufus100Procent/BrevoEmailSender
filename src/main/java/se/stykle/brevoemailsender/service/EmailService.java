@@ -265,6 +265,7 @@ public class EmailService {
 
         OffsetDateTime eventDate = eventDateTime.atOffset(ZoneOffset.UTC);
 
+        // Map the Brevo event to your Status enum
         final Status eventStatus;
         try {
             eventStatus = Status.valueOf(eventStr);
@@ -273,11 +274,21 @@ public class EmailService {
             throw new RuntimeException("Unknown event status: " + eventStr);
         }
 
+        log.info("Updating email with messageId: {}", messageId);
         emailData.setDate(eventDate);
         emailData.setEmailStatus(eventStatus);
-        emailData.setMirrorLink(mirrorLink);
+
+        if (mirrorLink != null) {
+            log.info("Setting mirrorLink for messageId: {}", messageId);
+            emailData.setMirrorLink(mirrorLink);
+        } else {
+            log.warn("No mirrorLink provided in webhook for messageId: {}", messageId);
+        }
+
         emailDataRepository.save(emailData);
 
+        // Update the EmailHistory with the new event
+        log.info("Creating EmailHistory entry for messageId: {}", messageId);
         EmailHistory historyEntry = new EmailHistory();
         historyEntry.setMessageId(emailData.getMessageId());
         historyEntry.setEmail(emailData.getEmailTo());
@@ -288,6 +299,7 @@ public class EmailService {
         emailHistoryRepository.save(historyEntry);
 
         Sequence sequence = emailData.getSequence();
+        log.info("Updating sequence counts for sequence: {}", sequence.getName());
         switch (eventStatus) {
             case DELIVERED:
                 sequence.setRequestedCount(Math.max(sequence.getRequestedCount() - 1, 0));
@@ -297,13 +309,7 @@ public class EmailService {
                 sequence.setDeliveredCount(Math.max(sequence.getDeliveredCount() - 1, 0));
                 sequence.setOpenedCount(sequence.getOpenedCount() + 1);
                 break;
-            case CLICKED:
-                break;
-            case BOUNCED:
-            case SOFT_BOUNCED:
-            case HARD_BOUNCED:
-            case MARKED_AS_SPAM:
-            case UNSUBSCRIBED:
+            case CLICKED, BOUNCED, SOFT_BOUNCED, HARD_BOUNCED, MARKED_AS_SPAM, UNSUBSCRIBED:
                 break;
             default:
                 log.warn("Unhandled event status: {}", eventStatus);
@@ -312,7 +318,10 @@ public class EmailService {
 
         // Save the updated sequence
         sequenceRepository.save(sequence);
+
+        log.info("Webhook processing completed for messageId: {}", messageId);
     }
+
     public EmailSummaryDTO getEmailSummary(String messageId) {
         return emailDataRepository.findEmailSummaryByMessageId(messageId)
                 .orElseThrow(() -> new RuntimeException("Email not found with messageId: " + messageId));
