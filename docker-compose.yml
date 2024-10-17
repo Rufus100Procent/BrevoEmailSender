@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:latest
+    container_name: postgres
+    environment:
+      POSTGRES_USER: admintrator
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: brevo_email
+    ports:
+      - "5433:5432"

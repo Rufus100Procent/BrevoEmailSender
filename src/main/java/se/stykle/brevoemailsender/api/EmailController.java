@@ -4,12 +4,12 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import se.stykle.brevoemailsender.EmailMessage;
+import se.stykle.brevoemailsender.entity.EmailData;
+import se.stykle.brevoemailsender.entity.dto.EmailSummaryDTO;
 import se.stykle.brevoemailsender.service.EmailService;
 import software.xdev.brevo.model.GetScheduledEmailById200Response;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 
@@ -24,36 +24,24 @@ public class EmailController {
         this.emailService = emailService;
     }
 
-    @PostMapping("/send-email")
-    public ResponseEntity<Map<String, String>> sendEmail(
+    @PostMapping("/send")
+    public ResponseEntity<?> sendEmail(
             @RequestParam(required = false) Long templateId,
-            @RequestBody EmailMessage emailMessage,
-            @RequestParam(required = false) String scheduledAt) {
-
-        HttpHeaders responseHeaders = new HttpHeaders();
-        responseHeaders.set("API-Version", "1.2.0");
-
+            @RequestBody EmailData emailData,
+            @RequestParam(required = false) String scheduledAt,
+            @RequestParam(required = false) String sequenceName) {
         try {
-            emailService.sendEmail(templateId, emailMessage, scheduledAt);
+            EmailData savedEmailData = emailService.sendEmail(templateId, emailData, scheduledAt, sequenceName);
 
             Map<String, String> responseBody = new HashMap<>();
+            responseBody.put("messageId", savedEmailData.getMessageId());
             responseBody.put("message", "Email sent successfully!");
-            responseBody.put("messageId", emailMessage.getMessageId());
 
-            return ResponseEntity.ok()
-                    .headers(responseHeaders)
-                    .body(responseBody);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .headers(responseHeaders)
-                    .body(Map.of("error", e.getMessage()));
+            return ResponseEntity.ok(responseBody);
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .headers(responseHeaders)
-                    .body(Map.of("error", "Failed to send email: " + e.getMessage()));
+            return ResponseEntity.badRequest().body("Error sending email: " + e.getMessage());
         }
     }
-
 
     @DeleteMapping("/cancel-scheduled-email")
     public ResponseEntity<String> cancelScheduledEmail(@RequestParam String messageId) {
@@ -90,8 +78,6 @@ public class EmailController {
         }
     }
 
-
-    // receives webhooks from brevo
     @PostMapping("/webhook/email-event")
     public ResponseEntity<String> handleWebhookEvent(@RequestBody Map<String, Object> payload) {
         HttpHeaders responseHeaders = new HttpHeaders();
@@ -109,25 +95,14 @@ public class EmailController {
         }
     }
 
-    @GetMapping("/emails")
-    public ResponseEntity<List<Map<String, String>>> getFormattedEmails() {
-        HttpHeaders responseHeaders = new HttpHeaders();
-        responseHeaders.set("API-Version", "1.0.0");
-
-        List<Map<String, String>> emails = emailService.getFormattedEmails();
-        return ResponseEntity.ok()
-                .headers(responseHeaders)
-                .body(emails);
+    @GetMapping("/getemail")
+    public ResponseEntity<?> getEmailSummary(@RequestParam String messageId) {
+        try {
+            EmailSummaryDTO emailSummary = emailService.getEmailSummary(messageId);
+            return ResponseEntity.ok(emailSummary);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Error fetching email: " + e.getMessage());
+        }
     }
 
-    @GetMapping("/emails/raw-data")
-    public ResponseEntity<List<EmailMessage>> getAllEmails() {
-        HttpHeaders responseHeaders = new HttpHeaders();
-        responseHeaders.set("API-Version", "1.0.0");
-
-        List<EmailMessage> emails = emailService.getAllEmails();
-        return ResponseEntity.ok()
-                .headers(responseHeaders)
-                .body(emails);
-    }
 }
