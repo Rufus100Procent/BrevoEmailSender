@@ -233,13 +233,14 @@ public class EmailService {
     public void handleWebhook(Map<String, Object> payload) {
         log.info("Webhook data: {}", payload);
 
-        // Extract essential fields
+        // Extract essential fields from the webhook payload
         final String emailTo = payload.get("email") != null ? payload.get("email").toString() : null;
         final String messageId = payload.get("message-id") != null ? payload.get("message-id").toString() : null;
         final String eventStr = payload.get("event") != null ? payload.get("event").toString().toUpperCase() : null;
         final String dateStr = payload.get("date") != null ? payload.get("date").toString() : null;
         final String mirrorLink = payload.get("mirror_link") != null ? payload.get("mirror_link").toString() : null;
 
+        // Check for missing fields
         if (emailTo == null || messageId == null || eventStr == null) {
             log.warn("Webhook data is missing essential fields: {}", payload);
             throw new RuntimeException("Webhook data is not recognized: " + payload);
@@ -262,7 +263,6 @@ public class EmailService {
             log.warn("Invalid date format in webhook: {}", dateStr);
             eventDateTime = LocalDateTime.now(); // Fallback to current date
         }
-
         OffsetDateTime eventDate = eventDateTime.atOffset(ZoneOffset.UTC);
 
         // Map the Brevo event to your Status enum
@@ -271,6 +271,13 @@ public class EmailService {
             eventStatus = Status.valueOf(eventStr);
         } catch (IllegalArgumentException e) {
             log.warn("Unknown event status: {}", eventStr);
+
+
+            if (eventStr.equalsIgnoreCase("REQUEST")) {
+                log.info("Ignoring REQUEST event.");
+                return; // Skip processing REQUEST events
+            }
+
             throw new RuntimeException("Unknown event status: " + eventStr);
         }
 
@@ -294,7 +301,6 @@ public class EmailService {
         historyEntry.setEmail(emailData.getEmailTo());
         historyEntry.setEmailStatus(eventStatus);
         historyEntry.setDate(eventDate);
-        historyEntry.setMirrorLink(mirrorLink);
         historyEntry.setEmailData(emailData);
         emailHistoryRepository.save(historyEntry);
 
@@ -321,6 +327,7 @@ public class EmailService {
 
         log.info("Webhook processing completed for messageId: {}", messageId);
     }
+
 
     public EmailSummaryDTO getEmailSummary(String messageId) {
         return emailDataRepository.findEmailSummaryByMessageId(messageId)
